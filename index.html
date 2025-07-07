@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  
+
+</form>
+<p id="auth-message" style="color: red; margin-top: 10px;"></p>
+
+
+  <title>Görev Yöneticisi</title>
+  <style>
+    body { font-family: Arial; margin: 30px; background: #f9f9f9; }
+   
+    h1 { color: #6f00ff; }
+    form { margin-bottom: 20px; }
+    input[type="text"] { padding: 8px; width: 300px; }
+    button { padding: 8px 12px; margin-left: 10px; }
+    .task { margin: 10px 0; padding: 10px; background: #fff; border: 1px solid #ddd; }
+    .completed { text-decoration: line-through; color: gray; }
+  </style>
+</head>
+<body>
+  <div id="auth-container">
+    <form id="auth-form">
+  <h1>Giriş / Kayıt</h1>
+  <input type="email" id="email" placeholder="Email" required>
+  <input type="password" id="password" placeholder="Şifre" required>
+  <button type="submit", onclick="login()">Giriş Yap</button>
+  <button type="button" onclick="register()">Kayıt Ol</button>
+  <button onclick="logout()">Çıkış Yap</button>
+</form>
+</div>
+
+
+  <form id="task-form">
+    <h1>Görev Yöneticisi</h1>
+  
+    <input type="text" id="task-input" placeholder="Yeni görev gir..." required> <label for="start">Görev Giriş Tarihi:</label><input type="date" id="task-date-start" placeholder="Tarih gir..." required>  <label for="final">Hedeflenen Bitiş Tarihi:</label><input type="date" id="task-date-final" placeholder="Tarih gir..." required>
+    
+    <div id="success-message" style="color: green; margin-top: 10px;"></div>
+    
+    <div id="error-message" style="color: red; margin-top: 10px;"></div>
+   
+    <button type="submit">Ekle</button>
+  </form>
+
+  <div id="task-list"></div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/tasks';
+    const AUTH_URL = 'http://localhost:3000/auth'; // auth route
+
+document.getElementById('auth-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const message = document.getElementById('auth-message');
+
+  try {
+    const res = await fetch(`${AUTH_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      message.textContent = data.error || 'Giriş başarısız';
+      return;
+    }
+
+    localStorage.setItem('token', data.token);
+    message.style.color = 'green';
+    message.textContent = 'Giriş başarılı';
+    getTasks(); // görevleri yükle
+  } catch (err) {
+    message.textContent = 'Sunucu hatası';
+  }
+});
+
+async function register() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const message = document.getElementById('auth-message');
+
+  try {
+    const res = await fetch(`${AUTH_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      message.textContent = data.error || 'Kayıt başarısız';
+      return;
+    }
+
+    message.style.color = 'green';
+    message.textContent = 'Kayıt başarılı. Şimdi giriş yapabilirsiniz.';
+  } catch (err) {
+    message.textContent = 'Sunucu hatası';
+  }
+}
+
+async function login() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const message = document.getElementById('auth-message');
+
+  console.log(email);
+  console.log("login fonksiyonu çalıştı");
+  console.log(password);
+  try {
+    const res = await fetch(`${AUTH_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      message.textContent = data.error || 'Giriş başarısız';
+      return;
+    }
+
+    localStorage.setItem('token', data.token);
+    message.style.color = 'green';
+    message.textContent = 'Giriş başarılı';
+    getTasks(); // görevleri yükle
+  } catch (err) {
+    message.textContent = 'Sunucu hatası';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  document.getElementById('auth-message').textContent = 'Çıkış yapıldı';
+  document.getElementById('task-list').innerHTML = '';
+}
+
+
+
+    const taskList = document.getElementById('task-list');
+    taskList.innerHTML = '';
+
+    async function getTasks() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        document.getElementById('task-list').innerHTML = '<p>Lütfen giriş yapınız</p>';
+        return;
+      }
+      try {
+      const res = await fetch(API_URL, { 
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const tasks = await res.json();
+      if(!res.ok){
+        document.getElementById('task-list').innerHTML = '<p>Lütfen giriş yapınız</p>';
+        return;
+      }
+      const list = document.getElementById('task-list');
+      list.innerHTML = '';
+
+      tasks.forEach(task => {
+        const div = document.createElement('div');
+        div.className = 'task' + (task.completed ? ' completed' : '');
+        div.innerHTML = `
+  <span>${task.title}</span><br>
+  <small><strong>Giriş Saati:</strong> ${new Date(task.startDate).toLocaleString()}</small><br>
+  <small><strong>Hedef Bitiş:</strong> ${task.finalDate ? new Date(task.finalDate).toLocaleString() : '-'}</small><br>
+  <small><strong>Gerçek Başlangıç:</strong> ${task.actualStartDate ? new Date(task.actualStartDate).toLocaleString() : '-'}</small><br>
+  <small><strong>Gerçek Bitiş:</strong> ${task.actualFinishDate ? new Date(task.actualFinishDate).toLocaleString() : '-'}</small><br>
+  <button onclick="startTask('${task._id}')">Başla</button>
+  <button onclick="finishTask('${task._id}')">Bitir</button>
+  <button onclick="deleteTask('${task._id}')">🗑️</button>
+`;
+
+
+        
+        list.appendChild(div);
+      });
+      
+  } catch (error) {
+    console.log(error);
+    document.getElementById('task-list').innerHTML = '<p>Sunucu hatası</p>';
+  }
+}
+
+    
+async function startTask(id) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    document.getElementById('task-list').innerHTML = '<p>Lütfen giriş yapınız</p>';
+    return;
+  }
+  const now = new Date().toISOString();
+  await fetch(`${API_URL}/${id}/start`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ actualStartDate: now })
+  });
+  getTasks();
+}
+
+async function finishTask(id) { 
+  const token = localStorage.getItem('token');
+  if (!token) {
+    document.getElementById('task-list').innerHTML = '<p>Lütfen giriş yapınız</p>';
+    return;
+  }
+  const now = new Date().toISOString();
+  await fetch(`${API_URL}/${id}/finish`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({
+      actualFinishDate: now,
+      completed: true
+    })
+  });
+  getTasks();
+}
+
+
+async function addTask(title) {
+  
+  const errorDiv = document.getElementById('error-message');
+  errorDiv.textContent = '';
+
+  const successDiv = document.getElementById('success-message');
+  successDiv.textContent = '';
+
+  const startDate = document.getElementById('task-date-start').value;
+  const finalDate = document.getElementById('task-date-final').value;
+
+  const token = localStorage.getItem('token'); // ⭐️ token'ı localStorage’dan al
+
+  if (!token) {
+    errorDiv.textContent = 'Lütfen önce giriş yapın';
+    return;
+  }
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // 🔐 token'ı ekle
+      },
+      body: JSON.stringify({ title, startDate, finalDate })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorDiv.textContent = data.error || 'Bir hata oluştu';
+      return;
+    }
+
+    successDiv.textContent = 'Görev başarıyla eklendi';
+    getTasks();
+  } catch (error) {
+    console.log(error);
+    errorDiv.textContent = 'Sunucu hatası';
+  }
+}
+
+
+    async function toggleTask(id, current) {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        document.getElementById('task-list').innerHTML = '<p>Lütfen giriş yapınız</p>';
+        return;
+      }
+      await fetch(`${API_URL}/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ completed: !current })
+      });
+      getTasks();
+    }
+
+    async function deleteTask(id) {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        document.getElementById('task-list').innerHTML = '<p>Lütfen giriş yapınız</p>';
+        return;
+      }
+      await fetch(`${API_URL}/${id}/delete`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isDeleted: true }),
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      getTasks();
+    }
+
+    document.getElementById('task-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const input = document.getElementById('task-input');
+      const title = input.value.trim();
+      if (title) {
+        addTask(title);
+        input.value = '';
+      }
+    });
+
+    getTasks();
+  </script>
+</body>
+</html>
